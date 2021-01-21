@@ -1,0 +1,15 @@
+# Build file for Google Cloud Build
+steps:
+# Clone
+- name: gcr.io/cloud-builders/git
+  args: ['clone', 'https://github.com/tkarlsson/halogger.git']
+# Build
+- name: 'gcr.io/cloud-builders/gradle'
+  args: ['build']
+  dir: 'halogger/'
+# Push to gcr.io
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '--tag=gcr.io/$PROJECT_ID/halogger', '.']
+  dir: 'halogger/'
+images: ['gcr.io/$PROJECT_ID/halogger']
+
