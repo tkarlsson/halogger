@@ -1,0 +1,199 @@
+buildscript {
+    repositories {
+		maven { url "http://repo.spring.io/libs-release" }
+		maven { url "http://repo.spring.io/libs-milestone" }
+		maven { url "http://repo.spring.io/libs-snapshot" }
+    	mavenCentral()
+    }
+    dependencies {
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion"
+        classpath 'org.hidetake:gradle-ssh-plugin:1.1.2'
+        classpath "se.transmode.gradle:gradle-docker:1.2"
+    }
+}
+
+plugins {
+	id 'com.google.cloud.tools.jib' version '1.0.0'
+}
+
+group = 'flexiverse'
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+idea {
+	module {
+		inheritOutputDirs = true
+	}
+}
+apply plugin: 'org.springframework.boot'
+
+defaultTasks = ['assemble']
+
+jar {
+    baseName = 'halogger'
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+//sourceSets.main.output.resourcesDir = sourceSets.main.output.classesDir
+//sourceSets.test.output.resourcesDir = sourceSets.test.output.classesDir
+
+jib.to.image = 'gcr.io/flexiverse-repos/halogger'
+
+repositories {
+    maven { url 'http://repo.spring.io/libs-release'}
+	maven { url "http://repo.spring.io/libs-milestone" }
+	maven { url "http://repo.spring.io/libs-snapshot" }
+    maven { url "https://repository.jboss.org/nexus/content/repositories/releases/" }
+    mavenCentral()
+}
+	
+group = 'eu.flexiverse'
+sourceCompatibility=1.8
+targetCompatibility=1.8
+
+
+description = 'Spring Boot Home Assistant Log Feeder'
+dependencies {
+	compile("org.springframework.boot:spring-boot-starter-web:${springBootVersion}")
+	compile("org.springframework.boot:spring-boot-starter-tomcat:${springBootVersion}") 
+	compile("org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}")
+	compile("org.springframework.boot:spring-boot-starter-websocket:${springBootVersion}")
+    
+    compile("org.springframework:spring-core:$springVersion") {
+		force = true
+    }
+ 
+    compile "org.springframework.security:spring-security-web:$springSecurityVersion"
+    compile "org.springframework.security:spring-security-config:$springSecurityVersion"
+
+	compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.6.2'
+
+    //providedCompile("javax.servlet:javax.servlet-api:$servletApiVersion") {
+	//	transitive = false
+	//}
+	
+    //providedCompile("org.apache.tomcat.embed:tomcat-embed-jasper")
+    //providedRuntime 'org.apache.tomcat.embed:tomcat-embed-jasper'
+	
+    //providedCompile "javax.servlet.jsp:javax.servlet.jsp-api:2.3.1" {
+	//	transitive = false
+	//}
+
+    //compile group: 'org.apache.tomcat.embed', name: 'tomcat-embed-jasper'
+	
+    //compile "com.fasterxml.jackson.core:jackson-databind:$jacksonVersion"
+
+	//testCompile("org.springframework.boot:spring-boot-starter-test:${springBootVersion}")
+    testCompile("org.springframework:spring-test:$springVersion") {
+		force = true
+    }
+    testCompile group: 'junit', name: 'junit', version: '4.+'
+	//testCompile("org.springframework.boot:spring-boot-starter-test")
+	testCompile("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
+    testCompile group: 'org.hamcrest', name: 'hamcrest-all', version: '1.3'
+    testCompile group: 'com.jayway.jsonpath', name: 'json-path-assert', version: '0.8.1'
+
+    runtime(
+        "org.springframework:spring-core:$springVersion" 
+    )
+}
+
+configurations {
+	compile.exclude module: "spring-boot-starter-jetty"
+   
+	jacoco //Configuration Group used by Sonar to provide Code Coverage using JaCoCo
+}
+
+//task listJars << {
+//    configurations.compile.each { File file -> println file.name }
+//}
+
+//task show << {
+//    println configurations.compile.files
+//    println configurations.runtime.files
+//    println configurations.testCompile.files
+//    println configurations.testRuntime.files
+//}
+
+ext.buildTimestamp = new Date().format('yyyy-MM-dd HH:mm:ss')
+version = new ProjectVersion(mqttLoggerMajorVersion.toInteger(), mqttLoggerMinorVersion.toInteger(), System.env.SOURCE_BUILD_NUMBER)
+
+String jarFileName = jar.baseName + "-" + version.toString() + ".jar"
+
+class ProjectVersion {
+	Integer major
+	Integer minor
+	String build
+	
+	ProjectVersion(Integer major, Integer minor, String build) {
+		this.major = major
+		this.minor = minor
+		this.build = build
+	}
+
+	@Override
+	String toString() {
+		String fullVersion = "$major.$minor"
+
+		if(build) {
+			fullVersion +=".$build"
+		}
+
+		fullVersion
+	}
+}
+
+//task showFilename << {
+//	println "foo: " + "$buildDir/libs/$jarFileName"
+//	println "filename: " + jarFileName
+//	println "filename: " + jar.baseName + "-" + version.toString() + ".jar"
+//	println jar.baseName + "-" + jar.version + ".jar"
+//	println jar.baseName + "-" + version + ".jar"
+//}
+
+
+//task setupDatabaseTests << {
+    // create schema
+    // load data
+//}
+
+test {
+	systemProperties 'property': 'value'
+	// suppress all console output during testing unless running `gradle -i`
+	logging.captureStandardOutput(LogLevel.INFO)
+	//jvmArgs "-javaagent:${configurations.jacoco.asPath}=destfile=${buildDir}/jacoco.exec,includes=eu.flexiverse.*"
+}
+
+
+//compileJava.destinationDir = file("$buildDir/output/classes")
+
+/*
+sonarRunner {
+	sonarProperties {
+		property "sonar.projectKey", "eu.flexiverse:hunter-top"
+		property "sonar.projectName", "HunterWeb"
+		property "sonar.host.url", "http://ci.flexiverse.eu:9000"
+		property "sonar.jdbc.url", "jdbc:postgresql://zem.magrathea.org/sonar"
+		property "sonar.jdbc.driverClassName", "org.postgresql.Driver"
+		property "sonar.jdbc.username", "sonar"
+		property "sonar.jdbc.password", "sonar"
+		property "sonar.sourceEncoding", "UTF-8"
+	}
+}
+*/
+
+//task createBuildInfoFile {
+//	def buildInfoFile = new File("$buildDir/build-info.properties")
+//	Properties props = new Properties()
+//	props.setProperty('version', project.version.toString())
+//	props.setProperty('timestamp', project.buildTimestamp)
+//	props.store(buildInfoFile.newWriter(), null)
+//}
+
+wrapper {
+	gradleVersion = '5.3'
+}
